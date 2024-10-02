@@ -28,7 +28,7 @@ def upload_folder_to_huggingface(local_folder_path, repo_name, token):
 
 if __name__ == "__main__":
     # Set your Hugging Face token
-    hf_token = "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"
+    hf_token = ""
     
     # Set the local folder path
     local_folder_path = "/root/llm.c/dev/data/fineweb10B"
