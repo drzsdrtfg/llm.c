@@ -42,6 +42,14 @@ make train_gpt2cu USE_CUDNN=1
 # if you have multiple GPUs (e.g. 8), simply prepend the mpi command, e.g.:
 # mpirun -np 8 ./train_gpt2cu \ ... (the rest of the args are same)
 ```
+## VSC problems with corresponding solutions
+
+### Independent terminals
+```bash
+exec bash --login
+touch ~/.no_auto_tmux
+#>Disconnect and reconnect>solved?
+```
 ---
 
 <details>
