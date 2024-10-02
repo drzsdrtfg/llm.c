@@ -1,4 +1,5 @@
 # Uploads the pretokenized dataset to huggingface
+#Should be placed in cd ~
 from huggingface_hub import HfApi, create_repo
 
 def upload_folder_to_huggingface(local_folder_path, repo_name, token):
