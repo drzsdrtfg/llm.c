@@ -1,7 +1,7 @@
 # Cuda model training (cudadev; >12.4)
 ```bash
-git clone https://github.com/drzsdrtfg/Lets-develop-an-efficient-LLM.git
-cd Lets-develop-an-efficient-LLM
+git clone https://github.com/drzsdrtfg/llm.c.git
+cd llm.c
 pip install tqdm tiktoken requests datasets transformers
 # for me, CUDA 12 (run `nvcc --version`) running on Linux x86_64 Ubuntu 22.04
 wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
