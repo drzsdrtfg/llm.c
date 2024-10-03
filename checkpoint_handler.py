@@ -1,8 +1,9 @@
 import os
 import re
 import json
-from huggingface_hub import HfApi, upload_file, upload_folder
-from datetime import datetime
+import time
+from huggingface_hub import HfApi, upload_file, upload_folder, hf_hub_download
+import shutil
 
 hf_token = "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"
 repo_name = "anonymguy/ehm"
@@ -12,7 +13,7 @@ def find_latest_checkpoint(log_folder):
     if not done_files:
         return None
     latest_done = max(done_files)
-    step = int(latest_done.split("_")[1])
+    step = int(re.search(r'_(\d{8})', latest_done).group(1))
     return step
 
 def parse_loss_from_log(log_folder, step):
@@ -56,6 +57,19 @@ def upload_checkpoint(log_folder, step, api):
         token=hf_token
     )
 
+def delete_old_checkpoints(log_folder, latest_step):
+    for file in os.listdir(log_folder):
+        if file.startswith(("DONE_", "model_", "state_")):
+            # Extract step number using regex
+            match = re.search(r'_(\d{8})', file)
+            if match:
+                step = int(match.group(1))
+                if step != latest_step:
+                    os.remove(os.path.join(log_folder, file))
+                    print(f"Deleted old checkpoint file: {file}")
+            else:
+                print(f"Skipping file with unexpected format: {file}")
+
 def upload_checkpoints():
     api = HfApi()
     log_folder = "./log124M"  # Adjust this path if needed
@@ -80,16 +94,19 @@ def upload_checkpoints():
         continuous = input("Should I continuously upload all checkpoints? (y/n): ").lower() == 'y'
         if continuous:
             while True:
-                checkpoints = [int(f.split("_")[1]) for f in os.listdir(log_folder) if f.startswith("DONE_")]
+                checkpoints = sorted([int(re.search(r'_(\d{8})', f).group(1)) for f in os.listdir(log_folder) if f.startswith("DONE_") and re.search(r'_(\d{8})', f)])
                 for step in checkpoints:
                     upload_checkpoint(log_folder, step, api)
+                    if step != max(checkpoints):
+                        delete_old_checkpoints(log_folder, max(checkpoints))
                 print(f"Uploaded {len(checkpoints)} checkpoints. Waiting for new checkpoints...")
-                # Wait for some time before checking again
                 time.sleep(300)  # Wait for 5 minutes
         else:
-            checkpoints = [int(f.split("_")[1]) for f in os.listdir(log_folder) if f.startswith("DONE_")]
+            checkpoints = sorted([int(re.search(r'_(\d{8})', f).group(1)) for f in os.listdir(log_folder) if f.startswith("DONE_") and re.search(r'_(\d{8})', f)])
             for step in checkpoints:
                 upload_checkpoint(log_folder, step, api)
+                if step != max(checkpoints):
+                    delete_old_checkpoints(log_folder, max(checkpoints))
             print(f"Uploaded {len(checkpoints)} checkpoints.")
     
     elif choice == "2":
@@ -99,11 +116,10 @@ def upload_checkpoints():
             while True:
                 latest_step = find_latest_checkpoint(log_folder)
                 if latest_step != last_uploaded_step:
-                    # Delete previous checkpoint in Hugging Face
                     if last_uploaded_step:
                         api.delete_folder(repo_id=repo_name, folder_path=f"checkpoints", token=hf_token)
+                        delete_old_checkpoints(log_folder, latest_step)
                     
-                    # Upload new checkpoint
                     upload_checkpoint(log_folder, latest_step, api)
                     last_uploaded_step = latest_step
                     print(f"Uploaded latest checkpoint: Step {latest_step}")
@@ -112,6 +128,7 @@ def upload_checkpoints():
                 time.sleep(300)  # Wait for 5 minutes
         else:
             upload_checkpoint(log_folder, latest_step, api)
+            delete_old_checkpoints(log_folder, latest_step)
             print(f"Uploaded latest checkpoint: Step {latest_step}")
     
     elif choice == "3":
@@ -133,7 +150,7 @@ def download_checkpoints():
     
     print("Available checkpoints:")
     for checkpoint in checkpoints:
-        step = int(checkpoint.split("_")[1])
+        step = int(re.search(r'_(\d{8})', checkpoint).group(1))
         print(f"Step: {step}")
     
     step_to_download = input("Enter the step number of the checkpoint you want to download: ")
@@ -144,17 +161,41 @@ def download_checkpoints():
         print("Invalid step number. Please enter a valid integer.")
         return
     
-    download_folder = f"./root/llm.c/log124M_downloaded_{step}"
-    os.makedirs(download_folder, exist_ok=True)
+    download_folder = "./log124M"
+    if os.path.exists(download_folder):
+        overwrite = input(f"The folder {download_folder} already exists. Do you want to overwrite it? (y/n): ")
+        if overwrite.lower() != 'y':
+            print("Download cancelled.")
+            return
+        shutil.rmtree(download_folder)
+    os.makedirs(download_folder)
     
     # Download checkpoint files
     checkpoint_files = [f for f in files if f.startswith(f"checkpoints/") and f"{step:08d}" in f]
     for file in checkpoint_files:
-        api.download_file(repo_id=repo_name, filename=file, local_dir=download_folder, token=hf_token)
+        local_file = os.path.join(download_folder, os.path.basename(file))
+        hf_hub_download(repo_id=repo_name, filename=file, local_dir=download_folder, token=hf_token)
+        # Move file from nested 'checkpoints' folder to main download folder
+        nested_file = os.path.join(download_folder, file)
+        if os.path.exists(nested_file):
+            shutil.move(nested_file, local_file)
+        print(f"Downloaded: {os.path.basename(file)}")
     
     # Download main.log and wandb_checkpoint.json
-    api.download_file(repo_id=repo_name, filename="main.log", local_dir=download_folder, token=hf_token)
-    api.download_file(repo_id=repo_name, filename="wandb_checkpoint.json", local_dir=download_folder, token=hf_token)
+    for file in ["main.log", "wandb_checkpoint.json"]:
+        local_file = os.path.join(download_folder, file)
+        hf_hub_download(repo_id=repo_name, filename=file, local_dir=download_folder, token=hf_token)
+        print(f"Downloaded: {file}")
+    
+    # Remove the cache folder
+    cache_folder = os.path.join(download_folder, '.cache')
+    if os.path.exists(cache_folder):
+        shutil.rmtree(cache_folder)
+    
+    # Remove the empty 'checkpoints' folder if it exists
+    checkpoints_folder = os.path.join(download_folder, 'checkpoints')
+    if os.path.exists(checkpoints_folder) and not os.listdir(checkpoints_folder):
+        os.rmdir(checkpoints_folder)
     
     print(f"Downloaded checkpoint and log files to {download_folder}")
 
