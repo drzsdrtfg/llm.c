@@ -125,7 +125,7 @@ def upload_checkpoints():
                     print(f"Uploaded latest checkpoint: Step {latest_step}")
                 
                 print("Waiting for new checkpoints...")
-                time.sleep(300)  # Wait for 5 minutes
+                time.sleep(200)  # Wait for 5 minutes
         else:
             upload_checkpoint(log_folder, latest_step, api)
             delete_old_checkpoints(log_folder, latest_step)
