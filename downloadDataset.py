@@ -67,10 +67,10 @@ if __name__ == "__main__":
     repo_id = "anonymguy/ehm"
     
     # Set the base directory path where you want to create the fineweb10B folder
-    base_dir = "/root/llm.c/dev/data"
+    base_dir = "/llm.c/dev/data"
 
      # Path to the folder you want to delete
-    folder_to_delete = "/root/llm.c/dev/data/fineweb10B/.cache"
+    folder_to_delete = "/llm.c/dev/data/fineweb10B/.cache"
 
     # Download the dataset
     download_dataset(repo_id, base_dir)
