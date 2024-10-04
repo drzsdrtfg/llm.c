@@ -31,7 +31,7 @@ if __name__ == "__main__":
     hf_token = ""
     
     # Set the local folder path
-    local_folder_path = "/llm.c/dev/data/fineweb10B"
+    local_folder_path = "dev/data/fineweb10B"
     
     # Set the desired repository name on Hugging Face
     repo_name = "anonymguy/ehm"
